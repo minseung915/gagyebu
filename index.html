@@ -231,6 +231,9 @@
   .fixed-add { margin-top: 10px; }
   .fixed-add #fixAmt { flex: 0 0 110px; }
   .toast .act { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; margin-left: 10px; padding: 0; cursor: pointer; }
+  .api-card { margin-top: 14px; padding: 12px; border-radius: 12px; background: var(--accent-soft); }
+  .api-card .note b { color: var(--text); }
+  .api-card .btn { font-size: 15px; }
   .refresh-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--sub); margin-top: 10px; }
 
   .toast {
@@ -344,6 +347,13 @@
       <div class="list-head"><h2>주식</h2><span class="sum num" id="stockSum"></span></div>
       <div id="stockList"></div>
       <p class="note" id="stockNote" style="margin:10px 0 0">종목 아래 %는 오늘 등락률, 오른쪽 %는 내 수익률이에요.</p>
+      <div id="apiCard" class="api-card" hidden>
+        <p class="note" style="margin:0 0 8px">📡 <b>주식 시세 주소</b>를 넣으면 종목 검색과 현재가 자동 갱신이 켜져요.</p>
+        <div class="search-row">
+          <input id="apiInline" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" autocapitalize="off">
+          <button class="btn primary" id="apiInlineSave">연결</button>
+        </div>
+      </div>
       <div class="refresh-row" id="refreshRow" hidden>
         <span id="refreshInfo"></span>
         <button class="link-btn" id="refreshBtn">시세 새로고침</button>
@@ -498,11 +508,18 @@
     } catch (e) {}
     return null;
   }
+  const PRICE_API_RE = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
   function normalize(s) {
     s.budgets ||= {};
     s.entries ||= [];
     s.assets ||= { cash: [], stocks: [], fx: 0 };
     s.fixed ||= [];
+    // 시세 주소를 주식 이름 칸에 넣어 저장한 경우: 주소는 설정으로 옮기고 잘못된 항목은 지움
+    s.assets.stocks = s.assets.stocks.filter(st => {
+      if (!PRICE_API_RE.test((st.name || '').trim())) return true;
+      s.priceApi ||= st.name.trim();
+      return false;
+    });
     return s;
   }
   let state = normalize(load() || { settings: null });
@@ -912,7 +929,7 @@
     if (!parseInt($('sPayday').value, 10)) { toast('월급날을 입력해 주세요'); return; }
     if (!defaultBudget) { toast('한 달 예산을 입력해 주세요'); return; }
     const priceApi = $('sPriceApi').value.trim();
-    if (priceApi && !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(priceApi)) {
+    if (priceApi && !PRICE_API_RE.test(priceApi)) {
       toast('시세 주소는 https://script.google.com/macros/s/…/exec 형태여야 해요'); return;
     }
     const apiChanged = (state.priceApi || '') !== priceApi;
@@ -1122,6 +1139,7 @@
     }).join('') : '<div class="empty">보유 주식을 추가해 보세요</div>';
 
     $('stockNote').hidden = !A.stocks.length;
+    $('apiCard').hidden = !!state.priceApi;
     $('refreshRow').hidden = !(state.priceApi && A.stocks.some(s => s.key));
     $('refreshInfo').textContent = (A.pricedAt ? `시세 ${fmtTime(A.pricedAt)} 기준` : '')
       + (state.priceApi && liveMarket() ? ' · 장중 1분마다 자동 갱신' : '');
@@ -1306,8 +1324,25 @@
     if (/https?:\/\//.test($('aQuery').value)) resolveLink($('aQuery').value.trim());
   }, 0));
 
+  // 시세 주소를 설정에 저장하고 연결 확인
+  function setPriceApi(url) {
+    state.priceApi = url;
+    save(); render();
+    checkApi();
+  }
+  $('apiInlineSave').addEventListener('click', () => {
+    const url = $('apiInline').value.trim();
+    if (!PRICE_API_RE.test(url)) { toast('주소는 https://script.google.com/macros/s/…/exec 형태여야 해요'); return; }
+    $('apiInline').value = '';
+    setPriceApi(url);
+  });
+
   $('aSave').addEventListener('click', () => {
     const name = $('aName').value.trim();
+    const pasted = [name, $('aQuery').value.trim()].find(v => PRICE_API_RE.test(v));
+    if (pasted) { // 시세 주소를 종목 칸에 붙여넣은 경우
+      hideSheet(); setPriceApi(pasted); return;
+    }
     if (!name) { toast('이름을 입력해 주세요'); $('aName').focus(); return; }
     const A = state.assets;
     if (aKind === 'cash') {
