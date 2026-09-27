@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4f86f7"/>
+      <stop offset="1" stop-color="#2f6fed"/>
+    </linearGradient>
+    <linearGradient id="pig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb3c7"/>
+      <stop offset="1" stop-color="#ff8fae"/>
+    </linearGradient>
+  </defs>
+  <!-- 배경 (iOS가 모서리를 둥글게 자름) -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- 동전 -->
+  <circle cx="256" cy="118" r="50" fill="#ffd54a" stroke="#e8a900" stroke-width="10"/>
+  <text x="256" y="138" font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="58" font-weight="700" fill="#c98f00" text-anchor="middle">₩</text>
+
+  <!-- 다리 -->
+  <rect x="150" y="360" width="52" height="70" rx="18" fill="#ff8fae"/>
+  <rect x="300" y="360" width="52" height="70" rx="18" fill="#ff8fae"/>
+  <!-- 꼬리 -->
+  <path d="M398 262 q40 -8 34 26 q-4 22 -26 12" fill="none" stroke="#ff8fae" stroke-width="12" stroke-linecap="round"/>
+  <!-- 몸통 -->
+  <ellipse cx="250" cy="290" rx="160" ry="118" fill="url(#pig)"/>
+  <!-- 귀 -->
+  <path d="M150 200 L128 142 L200 176 Z" fill="#ff8fae" stroke-linejoin="round" stroke="#ff8fae" stroke-width="10"/>
+  <!-- 저금 구멍 -->
+  <rect x="210" y="186" width="92" height="16" rx="8" fill="#d9577c"/>
+  <!-- 코 -->
+  <ellipse cx="108" cy="298" rx="36" ry="30" fill="#ff7a9e"/>
+  <circle cx="98" cy="298" r="7" fill="#c2406a"/>
+  <circle cx="120" cy="298" r="7" fill="#c2406a"/>
+  <!-- 눈 -->
+  <circle cx="168" cy="252" r="12" fill="#3a2230"/>
+  <circle cx="172" cy="248" r="4" fill="#fff"/>
+  <!-- 볼 -->
+  <ellipse cx="190" cy="300" rx="18" ry="11" fill="#ff7a9e" opacity=".6"/>
+</svg>
