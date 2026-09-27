@@ -334,6 +334,11 @@
       <div class="label">총 재산</div>
       <div class="big num" id="aTotal">0원</div>
       <div class="hint" id="aHint"></div>
+      <div class="stats" id="aStats" hidden>
+        <div class="stat"><div class="k">투자 원금</div><div class="v num" id="aCost"></div></div>
+        <div class="stat"><div class="k">평가 금액</div><div class="v num" id="aValue"></div></div>
+        <div class="stat"><div class="k">평가 손익</div><div class="v num" id="aPl"></div><div class="k num" id="aPlPct"></div></div>
+      </div>
       <div class="alloc" id="alloc"><div class="c" id="allocCash"></div><div class="s" id="allocStock"></div></div>
       <div class="bar-legend"><span id="allocCashL"></span><span id="allocStockL"></span></div>
     </section>
@@ -1103,11 +1108,20 @@
     const pl = stockVal - stockCost, plPct = stockCost ? pl / stockCost * 100 : 0;
 
     $('aTotal').textContent = won(total);
-    let hint = A.stocks.length
-      ? `주식 평가손익 <b class="${tone(pl)}">${signed(pl, won)} (${signed(plPct, pct)}%)</b>`
+    let hint = A.stocks.length ? ''
       : (A.cash.length ? '보유 주식도 추가해 보세요' : '아래 버튼으로 통장·예금과 주식을 추가해 보세요');
-    if (needFx) hint += '<br>달러 환율이 없어서 해외 주식은 합계에서 빠졌어요';
+    if (needFx) hint += '달러 환율이 없어서 해외 주식은 합계에서 빠졌어요';
     $('aHint').innerHTML = hint;
+    $('aHint').hidden = !hint;
+
+    // 주식: 투자 원금 → 평가 금액 → 평가 손익
+    $('aStats').hidden = !A.stocks.length;
+    $('aCost').textContent = won(stockCost);
+    $('aValue').textContent = won(stockVal);
+    $('aPl').textContent = signed(pl, won);
+    $('aPl').className = 'v num ' + tone(pl);
+    $('aPlPct').textContent = `${signed(plPct, pct)}%`;
+    $('aPlPct').className = 'k num ' + tone(pl);
 
     const cp = total ? cashTotal / total * 100 : 0;
     $('alloc').hidden = !total;
