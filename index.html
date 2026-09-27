@@ -166,12 +166,12 @@
   .sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
   .link-btn { background: none; border: 0; color: var(--accent); font-size: 14px; padding: 8px 0; cursor: pointer; font-family: inherit; }
 
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--track); padding: 4px; border-radius: 12px; margin-top: 4px; }
+  .tabs { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; gap: 4px; background: var(--track); padding: 4px; border-radius: 12px; margin-top: 4px; }
   .tab { border: 0; background: transparent; color: var(--sub); font: inherit; font-size: 14px; font-weight: 600; padding: 8px 0; border-radius: 9px; cursor: pointer; }
   .tab.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .page-title { font-size: 17px; padding-left: 4px; }
-  .up, .hero .hint b.up { color: var(--up); }
-  .down, .hero .hint b.down { color: var(--down); }
+  .up, .hero .hint b.up, .mdiff b.up { color: var(--up); }
+  .down, .hero .hint b.down, .mdiff b.down { color: var(--down); }
   .alloc { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--track); margin-top: 16px; }
   .alloc .c { background: var(--good); }
   .alloc .s { background: var(--accent); }
@@ -193,6 +193,29 @@
   }
   .result small { color: var(--sub); font-size: 12px; white-space: nowrap; }
   #aResults { margin-bottom: 12px; max-height: 240px; overflow-y: auto; }
+  /* 월별 막대그래프 */
+  .seg { margin: 0; flex-wrap: nowrap; gap: 4px; }
+  .seg .chip { padding: 5px 10px; font-size: 12px; }
+  .mchart { margin-top: 18px; }
+  .mplot { position: relative; height: 170px; margin-left: 36px; border-bottom: 1px solid var(--line); }
+  .mgrid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); }
+  .mgrid span { position: absolute; left: -36px; top: -7px; width: 30px; text-align: right; font-size: 10px; color: var(--sub); }
+  .mbars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; }
+  .mcol {
+    flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+    background: none; border: 0; padding: 0; cursor: pointer; font: inherit;
+  }
+  .mbar { width: 100%; max-width: 30px; min-height: 2px; background: var(--accent); border-radius: 4px 4px 0 0; opacity: .38; transition: height .3s, opacity .15s; }
+  .mcol:hover .mbar { opacity: .6; }
+  .mcol.sel .mbar { opacity: 1; }
+  .mcol.live .mbar { background: repeating-linear-gradient(135deg, var(--accent) 0 5px, color-mix(in srgb, var(--accent) 70%, transparent) 5px 8px); }
+  .mval { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 4px; white-space: nowrap; visibility: hidden; }
+  .mcol.sel .mval { visibility: visible; }
+  .mx { display: flex; gap: 6px; margin: 6px 0 0 36px; }
+  .mx span { flex: 1; min-width: 0; text-align: center; font-size: 11px; color: var(--sub); white-space: nowrap; }
+  .mx span.sel { color: var(--text); font-weight: 600; }
+  .mdiff { font-size: 14px; color: var(--sub); margin: 12px 0 4px; }
+  .mdiff b { color: var(--text); }
   .breakdown { font-size: 12px; color: var(--sub); margin-top: 8px; }
   .quick { padding: 12px; }
   .quick .search-row { margin-bottom: 0; }
@@ -223,6 +246,7 @@
 <div class="wrap">
   <div class="tabs" role="tablist">
     <button class="tab" data-tab="budget" role="tab">가계부</button>
+    <button class="tab" data-tab="monthly" role="tab">월별</button>
     <button class="tab" data-tab="assets" role="tab">재산</button>
   </div>
 
@@ -232,7 +256,7 @@
       <b id="periodLabel" class="num"></b>
       <button class="icon-btn" id="nextBtn" aria-label="다음 기간">›</button>
     </div>
-    <b class="page-title" id="assetsTitle" hidden>내 재산 현황</b>
+    <b class="page-title" id="assetsTitle" hidden></b>
     <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙︎</button>
   </header>
 
@@ -282,6 +306,24 @@
     <h2>카테고리별</h2>
     <div id="cats"></div>
   </section>
+  </div>
+
+  <div id="viewMonthly" hidden>
+    <section class="card">
+      <div class="list-head">
+        <h2>기간별 지출</h2>
+        <div class="chips seg" id="mRange">
+          <button class="chip" data-n="6">6개월</button>
+          <button class="chip" data-n="12">12개월</button>
+        </div>
+      </div>
+      <div class="mchart">
+        <div class="mplot" id="mPlot"></div>
+        <div class="mx" id="mX"></div>
+      </div>
+      <p class="note" id="mNote" style="margin:12px 0 0"></p>
+    </section>
+    <section class="card" id="mDetail"></section>
   </div>
 
   <div id="viewAssets" hidden>
@@ -543,6 +585,7 @@
     if (!state.settings) return;
     applyTab();
     renderBudget();
+    renderMonthly();
     renderAssets();
   }
 
@@ -907,10 +950,116 @@
   function applyTab() {
     document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
     $('viewBudget').hidden = tab !== 'budget';
+    $('viewMonthly').hidden = tab !== 'monthly';
     $('viewAssets').hidden = tab !== 'assets';
     $('periodNav').hidden = tab !== 'budget';
-    $('assetsTitle').hidden = tab !== 'assets';
+    $('assetsTitle').hidden = tab === 'budget';
+    $('assetsTitle').textContent = tab === 'monthly' ? '월별 지출' : '내 재산 현황';
   }
+
+  // ---------- 월별 ----------
+  let mRange = 6, mSel = null;
+  try { mRange = +localStorage.getItem('gagyebu.mRange') || 6; } catch (e) {}
+
+  // 한 기간(월급날~다음 월급날 전날)의 요약
+  function periodStats(p) {
+    const s = iso(p.start), e = iso(p.end);
+    const all = state.entries.filter(x => x.date >= s && x.date <= e);
+    const exp = all.filter(x => !isIncome(x));
+    const total = xs => xs.reduce((a, x) => a + x.amount, 0);
+    const income = total(all.filter(isIncome));
+    const fixed = total(state.fixed);
+    const byCat = {};
+    exp.forEach(x => byCat[x.cat] = (byCat[x.cat] || 0) + x.amount);
+    return {
+      p, key: iso(p.start), spent: total(exp), count: exp.length, byCat, income, fixed,
+      avail: budgetFor(p) - fixed + income, days: diffDays(p.start, p.next),
+    };
+  }
+  // 축 눈금용 반올림 (예: 823,000 → 1,000,000 / 340,000 → 400,000)
+  function niceMax(v) {
+    if (v <= 0) return 100000;
+    const mag = 10 ** Math.floor(Math.log10(v));
+    return [1, 2, 2.5, 4, 5, 10].map(m => m * mag).find(n => n >= v);
+  }
+
+  function renderMonthly() {
+    if (tab !== 'monthly') return;
+    const today = todayDate(), cur = periodOf(today);
+    const list = [];
+    for (let p = cur, i = 0; i < mRange; i++, p = periodOf(addDays(p.start, -1))) list.unshift(periodStats(p));
+    if (!list.some(x => x.key === mSel)) mSel = list[list.length - 1].key;
+
+    document.querySelectorAll('#mRange .chip').forEach(b => b.classList.toggle('on', +b.dataset.n === mRange));
+
+    const top = niceMax(Math.max(...list.map(x => x.spent)));
+    const grid = [1, 0.5].map(f => `<div class="mgrid" style="bottom:${f * 100}%"><span>${short(top * f)}</span></div>`).join('');
+    const bars = list.map(x => {
+      const live = x.key === iso(cur.start);
+      const m = x.p.start.getMonth() + 1;
+      return `<button class="mcol${x.key === mSel ? ' sel' : ''}${live ? ' live' : ''}" data-k="${x.key}"
+        title="${m}월 (${md(x.p.start)}–${md(x.p.end)}) ${won(x.spent)}" aria-label="${m}월 지출 ${won(x.spent)}${live ? ', 진행 중' : ''}">
+        <span class="mval num">${short(x.spent)}</span>
+        <span class="mbar" style="height:${x.spent / top * 100}%"></span></button>`;
+    }).join('');
+    $('mPlot').innerHTML = grid + `<div class="mbars">${bars}</div>`;
+    $('mX').innerHTML = list.map(x => {
+      const m = x.p.start.getMonth() + 1;
+      return `<span class="${x.key === mSel ? 'sel' : ''}">${mRange > 6 ? m : m + '월'}</span>`;
+    }).join('');
+
+    const done = list.filter(x => x.key !== iso(cur.start) && x.count);
+    const avg = done.length ? done.reduce((a, x) => a + x.spent, 0) / done.length : 0;
+    const payday = state.settings.payday;
+    $('mNote').textContent = (payday === 1 ? '달력 월 기준' : `월급날(${payday}일) 기준 기간 · 예: 9월 = 9/${payday}~10/${payday - 1}`)
+      + ' · 고정지출 제외' + (done.length ? ` · 지난 ${done.length}개 기간 평균 ${won(avg)}` : '')
+      + ' · 줄무늬 막대는 진행 중인 기간';
+
+    // 선택한 기간 상세
+    const i = list.findIndex(x => x.key === mSel), x = list[i], prev = list[i - 1];
+    const live = x.key === iso(cur.start);
+    const left = x.avail - x.spent;
+    const cats = Object.entries(x.byCat).sort((a, b) => b[1] - a[1]);
+    const maxCat = cats[0]?.[1] || 1;
+    let diff = '';
+    if (prev && prev.spent) {
+      const d = x.spent - prev.spent, r = d / prev.spent * 100;
+      diff = `지난 기간보다 <b class="${tone(d)}">${signed(d, won)} (${signed(r, n => n.toFixed(0))}%)</b>`;
+    }
+    const perDay = x.spent / (live ? diffDays(x.p.start, today) + 1 : x.days);
+    $('mDetail').innerHTML = `
+      <div class="list-head"><h2>${x.p.start.getMonth() + 1}월 <span class="num" style="font-weight:400;color:var(--sub)">${md(x.p.start)} – ${md(x.p.end)}</span></h2>
+        <span class="sum">${live ? '진행 중' : ''}</span></div>
+      <div class="stats" style="margin-top:0">
+        <div class="stat"><div class="k">지출</div><div class="v num">${won(x.spent)}</div></div>
+        <div class="stat"><div class="k">쓸 수 있는 돈</div><div class="v num">${won(x.avail)}</div></div>
+        <div class="stat"><div class="k">${left >= 0 ? (live ? '남은 돈' : '남김') : '초과'}</div>
+          <div class="v num" style="${left < 0 ? 'color:var(--bad)' : ''}">${won(Math.abs(left))}</div></div>
+      </div>
+      <div class="mdiff">하루 평균 <b class="num">${won(perDay)}</b>${diff ? ' · ' + diff : ''}</div>
+      ${cats.length ? cats.map(([id, v]) => {
+        const c = catOf(id);
+        return `<div class="cat-row"><span>${c.ic} ${c.name}</span>
+          <div class="mini"><div style="width:${v / maxCat * 100}%"></div></div>
+          <span class="num">${won(v)}</span></div>`;
+      }).join('') : '<div class="empty">이 기간은 기록이 없어요</div>'}
+      <button class="link-btn" id="mOpen">이 기간 내역 보기 →</button>`;
+    $('mOpen').onclick = () => {
+      viewDate = x.p.start; selDay = null; tab = 'budget';
+      try { localStorage.setItem('gagyebu.tab', tab); } catch (e) {}
+      render(); window.scrollTo(0, 0);
+    };
+  }
+  $('mPlot').addEventListener('click', e => {
+    const b = e.target.closest('.mcol'); if (!b) return;
+    mSel = b.dataset.k; renderMonthly();
+  });
+  $('mRange').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    mRange = +b.dataset.n;
+    try { localStorage.setItem('gagyebu.mRange', mRange); } catch (e) {}
+    renderMonthly();
+  });
   document.querySelector('.tabs').addEventListener('click', e => {
     const b = e.target.closest('.tab'); if (!b) return;
     tab = b.dataset.tab;
