@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="가계부">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111317" media="(prefers-color-scheme: dark)">
+<title>내 가계부</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --text: #16181d;
+    --sub: #6b7280;
+    --line: #e5e7eb;
+    --accent: #2f6fed;
+    --accent-soft: #e8efff;
+    --good: #16a34a;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --track: #eceef2;
+    --up: #e5383b;   /* 한국식: 상승 빨강 */
+    --down: #2f6fed; /* 하락 파랑 */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111317;
+      --card: #1b1e24;
+      --text: #f1f3f6;
+      --sub: #9aa1ad;
+      --line: #2a2e36;
+      --accent: #5b8cff;
+      --accent-soft: #1f2a44;
+      --good: #34c56b;
+      --warn: #f0a33a;
+      --bad: #f06060;
+      --track: #2a2e36;
+      --up: #ff6b6b;
+      --down: #6b9bff;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+    font-size: 16px; line-height: 1.45;
+    padding: env(safe-area-inset-top) 0 calc(96px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 12px 16px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 12px; }
+  .period { display: flex; align-items: center; gap: 4px; }
+  .period b { font-size: 15px; font-weight: 600; }
+  .icon-btn {
+    border: 0; background: transparent; color: var(--sub); font-size: 20px;
+    width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+  }
+  .icon-btn:active { background: var(--track); }
+  .icon-btn:disabled { opacity: .3; }
+
+  .card { background: var(--card); border-radius: 18px; padding: 18px; margin-bottom: 12px; }
+  .hero .label { color: var(--sub); font-size: 14px; }
+  .hero .big { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; margin: 2px 0 4px; }
+  .hero .hint { font-size: 14px; color: var(--sub); }
+  .hero .hint b { color: var(--text); font-weight: 600; }
+  .big.over { color: var(--bad); }
+
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 16px; }
+  .stat { background: var(--bg); border-radius: 12px; padding: 10px 8px; min-width: 0; }
+  .stat .k { font-size: 12px; color: var(--sub); }
+  .stat .v { font-size: 14px; font-weight: 600; margin-top: 2px; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .bar-wrap { margin-top: 16px; }
+  .bar { position: relative; height: 10px; background: var(--track); border-radius: 99px; overflow: visible; }
+  .bar .fill { height: 100%; border-radius: 99px; background: var(--accent); transition: width .3s; max-width: 100%; }
+  .bar .today { position: absolute; top: -4px; width: 2px; height: 18px; background: var(--text); border-radius: 2px; opacity: .55; }
+  .bar-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--sub); margin-top: 6px; }
+
+  h2 { font-size: 15px; margin: 0 0 12px; font-weight: 600; }
+  .cat-row { display: grid; grid-template-columns: 70px 1fr auto; align-items: center; gap: 10px; margin: 8px 0; font-size: 14px; }
+  .cat-row .mini { height: 6px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .cat-row .mini div { height: 100%; background: var(--accent); border-radius: 99px; }
+  .empty { color: var(--sub); font-size: 14px; text-align: center; padding: 12px 0; }
+
+  .cal-wd, .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-wd span { text-align: center; font-size: 11px; color: var(--sub); padding-bottom: 4px; }
+  .cal-wd span:first-child { color: var(--bad); }
+  .cell {
+    border: 0; background: var(--bg); color: var(--text); border-radius: 10px;
+    min-height: 50px; padding: 5px 2px 4px; font-family: inherit; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+  }
+  .cell .d { font-size: 13px; font-weight: 500; line-height: 1.2; }
+  .cell .d small { font-size: 9px; color: var(--sub); display: block; }
+  .cell .a { font-size: 10.5px; font-weight: 600; color: var(--sub); letter-spacing: -0.02em; }
+  .cell.spent .a { color: var(--text); }
+  .cell.over .a { color: var(--bad); }
+  .cell.future { opacity: .45; }
+  .cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+  .cell.sel { background: var(--accent); color: #fff; opacity: 1; }
+  .cell.sel .a, .cell.sel .d small { color: #fff; }
+  .cell.pad { background: transparent; cursor: default; }
+  .cal-legend { font-size: 12px; color: var(--sub); margin-top: 10px; }
+  .list-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .list-head h2 { margin: 0; }
+  .list-head .link-btn { padding: 0; }
+
+  .day-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--sub); margin: 14px 0 4px; }
+  .day-head:first-child { margin-top: 0; }
+  .item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .item:last-child { border-bottom: 0; }
+  .item .ic { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); display: grid; place-items: center; font-size: 18px; flex: none; }
+  .item .meta { flex: 1; min-width: 0; }
+  .item .meta .t { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .meta .s { font-size: 12px; color: var(--sub); }
+  .item .amt { font-weight: 600; font-size: 15px; }
+
+  .fab {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    width: calc(100% - 32px); max-width: 448px; height: 56px;
+    border: 0; border-radius: 16px; background: var(--accent); color: #fff;
+    font-size: 17px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 20px rgba(47,111,237,.3);
+  }
+  .fab:active { filter: brightness(.95); }
+
+  /* bottom sheet */
+  .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; z-index: 10; }
+  .scrim.open { display: block; }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 11;
+    background: var(--card); border-radius: 20px 20px 0 0;
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+    max-width: 480px; margin: 0 auto; max-height: 92vh; overflow-y: auto;
+    transform: translateY(105%); transition: transform .25s ease;
+  }
+  .sheet.open { transform: translateY(0); }
+  .grip { width: 40px; height: 4px; border-radius: 4px; background: var(--line); margin: 0 auto 12px; }
+  .sheet h3 { margin: 0 0 14px; font-size: 18px; }
+
+  .amount-input { display: flex; align-items: baseline; gap: 6px; border-bottom: 2px solid var(--accent); padding: 4px 0 6px; margin-bottom: 16px; }
+  .amount-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 32px; font-weight: 700; font-family: inherit; }
+  .amount-input span { font-size: 20px; color: var(--sub); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 99px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  label.field { display: block; font-size: 13px; color: var(--sub); margin-bottom: 12px; }
+  label.field input {
+    display: block; width: 100%; margin-top: 4px; padding: 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 16px; font-family: inherit;
+  }
+  .row { display: flex; gap: 8px; margin-top: 6px; }
+  .btn { flex: 1; height: 50px; border-radius: 14px; border: 0; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.ghost { background: var(--track); color: var(--text); }
+  .btn.danger { background: transparent; color: var(--bad); flex: 0 0 auto; padding: 0 16px; }
+  .note { font-size: 12px; color: var(--sub); margin: 4px 0 12px; }
+  .sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+  .link-btn { background: none; border: 0; color: var(--accent); font-size: 14px; padding: 8px 0; cursor: pointer; font-family: inherit; }
+
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--track); padding: 4px; border-radius: 12px; margin-top: 4px; }
+  .tab { border: 0; background: transparent; color: var(--sub); font: inherit; font-size: 14px; font-weight: 600; padding: 8px 0; border-radius: 9px; cursor: pointer; }
+  .tab.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .page-title { font-size: 17px; padding-left: 4px; }
+  .up, .hero .hint b.up { color: var(--up); }
+  .down, .hero .hint b.down { color: var(--down); }
+  .alloc { display: flex; height: 10px; border-radius: 99px; overflow: hidden; background: var(--track); margin-top: 16px; }
+  .alloc .c { background: var(--good); }
+  .alloc .s { background: var(--accent); }
+  .list-head .sum { font-size: 14px; font-weight: 600; color: var(--sub); }
+  .item .amt { text-align: right; }
+  .item .amt small { display: block; font-size: 12px; font-weight: 500; }
+  .item .amt small.krw { color: var(--sub); }
+  .fx { margin: 14px 0 0; }
+  .search-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .search-row input {
+    flex: 1; min-width: 0; padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 16px; font-family: inherit;
+  }
+  .search-row .btn { flex: 0 0 auto; height: auto; padding: 0 16px; font-size: 15px; }
+  .result {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
+    border: 0; background: transparent; color: var(--text); font: inherit; text-align: left;
+    padding: 10px 4px; border-bottom: 1px solid var(--line); cursor: pointer;
+  }
+  .result small { color: var(--sub); font-size: 12px; white-space: nowrap; }
+  #aResults { margin-bottom: 12px; max-height: 240px; overflow-y: auto; }
+  .breakdown { font-size: 12px; color: var(--sub); margin-top: 8px; }
+  .quick { padding: 12px; }
+  .quick .search-row { margin-bottom: 0; }
+  .quick .btn { font-size: 15px; }
+  .freq { margin: 10px 0 0; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .freq:empty { display: none; }
+  .freq .chip { white-space: nowrap; flex: none; font-size: 13px; padding: 7px 11px; }
+  .type-tabs { margin: 0 0 14px; }
+  .item .amt.inc { color: var(--good); }
+  .fixed-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .fixed-row span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fixed-row button { border: 0; background: none; color: var(--sub); font-size: 18px; width: 32px; height: 32px; cursor: pointer; }
+  .fixed-add { margin-top: 10px; }
+  .fixed-add #fixAmt { flex: 0 0 110px; }
+  .toast .act { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 600; margin-left: 10px; padding: 0; cursor: pointer; }
+  .refresh-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--sub); margin-top: 10px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 20;
+    white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: .92; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs" role="tablist">
+    <button class="tab" data-tab="budget" role="tab">가계부</button>
+    <button class="tab" data-tab="assets" role="tab">재산</button>
+  </div>
+
+  <header>
+    <div class="period" id="periodNav">
+      <button class="icon-btn" id="prevBtn" aria-label="이전 기간">‹</button>
+      <b id="periodLabel" class="num"></b>
+      <button class="icon-btn" id="nextBtn" aria-label="다음 기간">›</button>
+    </div>
+    <b class="page-title" id="assetsTitle" hidden>내 재산 현황</b>
+    <button class="icon-btn" id="settingsBtn" aria-label="설정">⚙︎</button>
+  </header>
+
+  <div id="viewBudget">
+  <section class="card hero">
+    <div class="label" id="heroLabel">오늘 쓸 수 있는 돈</div>
+    <div class="big num" id="heroValue">0원</div>
+    <div class="hint" id="heroHint"></div>
+
+    <div class="stats">
+      <div class="stat"><div class="k">쓸 수 있는 돈</div><div class="v num" id="sBudget"></div></div>
+      <div class="stat"><div class="k">쓴 돈</div><div class="v num" id="sSpent"></div></div>
+      <div class="stat"><div class="k">남은 돈</div><div class="v num" id="sLeft"></div></div>
+    </div>
+    <div class="breakdown num" id="breakdown"></div>
+
+    <div class="bar-wrap">
+      <div class="bar"><div class="fill" id="barFill"></div><div class="today" id="barToday"></div></div>
+      <div class="bar-legend"><span id="barLeft"></span><span id="barRight"></span></div>
+    </div>
+  </section>
+
+  <section class="card quick" id="quickCard">
+    <div class="search-row">
+      <input id="qAmount" class="num" inputmode="numeric" placeholder="금액만 입력하고 바로 기록" autocomplete="off" enterkeyhint="done">
+      <button class="btn primary" id="qSave">기록</button>
+    </div>
+    <div class="chips freq" id="qFreq"></div>
+  </section>
+
+  <section class="card">
+    <h2>달력</h2>
+    <div class="cal-wd"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+    <div class="cal" id="cal"></div>
+    <div class="cal-legend">하루 평균 예산(<span id="calAvg" class="num"></span>)보다 많이 쓴 날은 빨간색이에요</div>
+  </section>
+
+  <section class="card">
+    <div class="list-head">
+      <h2 id="listTitle">내역</h2>
+      <button class="link-btn" id="showAllBtn" hidden>전체 보기</button>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <section class="card">
+    <h2>카테고리별</h2>
+    <div id="cats"></div>
+  </section>
+  </div>
+
+  <div id="viewAssets" hidden>
+    <section class="card hero">
+      <div class="label">총 재산</div>
+      <div class="big num" id="aTotal">0원</div>
+      <div class="hint" id="aHint"></div>
+      <div class="alloc" id="alloc"><div class="c" id="allocCash"></div><div class="s" id="allocStock"></div></div>
+      <div class="bar-legend"><span id="allocCashL"></span><span id="allocStockL"></span></div>
+    </section>
+
+    <section class="card">
+      <div class="list-head"><h2>현금·예금</h2><span class="sum num" id="cashSum"></span></div>
+      <div id="cashList"></div>
+    </section>
+
+    <section class="card">
+      <div class="list-head"><h2>주식</h2><span class="sum num" id="stockSum"></span></div>
+      <div id="stockList"></div>
+      <p class="note" id="stockNote" style="margin:10px 0 0">종목 아래 %는 오늘 등락률, 오른쪽 %는 내 수익률이에요.</p>
+      <div class="refresh-row" id="refreshRow" hidden>
+        <span id="refreshInfo"></span>
+        <button class="link-btn" id="refreshBtn">시세 새로고침</button>
+      </div>
+      <label class="field fx" id="fxWrap" hidden>달러 환율 (1달러 = ?원, 자동으로 채워져요)
+        <input id="fxInput" inputmode="decimal" placeholder="예: 1,380">
+      </label>
+    </section>
+  </div>
+</div>
+
+<button class="fab" id="addBtn">+ 지출 기록</button>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- 지출 입력 시트 -->
+<div class="sheet" id="entrySheet" role="dialog" aria-modal="true">
+  <div class="grip"></div>
+  <h3 id="entryTitle">지출 기록</h3>
+  <div class="tabs type-tabs" id="fType">
+    <button class="tab" data-type="expense">지출</button>
+    <button class="tab" data-type="income">수입</button>
+  </div>
+  <div class="amount-input">
+    <input id="fAmount" class="num" inputmode="numeric" placeholder="0" autocomplete="off" enterkeyhint="done">
+    <span>원</span>
+  </div>
+  <div class="chips" id="fCats"></div>
+  <p class="note" id="fIncomeNote" hidden>월급은 이미 예산에 들어 있어요. 예산 밖으로 더 들어온 돈만 기록하면 쓸 수 있는 돈에 더해져요.</p>
+  <label class="field">메모 <input id="fMemo" placeholder="예: 점심 김밥" autocomplete="off"></label>
+  <label class="field">날짜 <input id="fDate" type="date"></label>
+  <div class="row">
+    <button class="btn danger" id="fDelete" hidden>삭제</button>
+    <button class="btn ghost" data-close>취소</button>
+    <button class="btn primary" id="fSave">저장</button>
+  </div>
+</div>
+
+<!-- 자산 입력 시트 -->
+<div class="sheet" id="assetSheet" role="dialog" aria-modal="true">
+  <div class="grip"></div>
+  <h3 id="assetTitle">자산 추가</h3>
+  <div class="chips" id="aType">
+    <button class="chip" data-type="cash">💰 현금·예금</button>
+    <button class="chip" data-type="stock">📈 주식</button>
+  </div>
+  <div id="aSearchWrap" hidden>
+    <div class="search-row">
+      <input id="aQuery" placeholder="종목 이름 또는 증권 앱 링크" autocomplete="off" enterkeyhint="search">
+      <button class="btn ghost" id="aSearchBtn">검색</button>
+    </div>
+    <div id="aResults"></div>
+    <p class="note">토스증권·네이버 증권 등에서 '공유 → 링크 복사' 후 붙여넣으면 종목이 자동으로 채워져요.</p>
+  </div>
+  <label class="field">이름 <input id="aName" autocomplete="off"></label>
+  <p class="note" id="aCodeNote" hidden></p>
+  <div id="aCashFields">
+    <label class="field">금액 (원) <input id="aAmount" inputmode="numeric" autocomplete="off"></label>
+  </div>
+  <div id="aStockFields">
+    <div class="chips" id="aCur">
+      <button class="chip" data-cur="KRW">국내 (원)</button>
+      <button class="chip" data-cur="USD">해외 (달러)</button>
+    </div>
+    <label class="field">보유 수량 (주) <input id="aQty" inputmode="decimal" autocomplete="off"></label>
+    <label class="field">평균 매수가 (<span class="cur-unit">원</span>) <input id="aAvg" inputmode="decimal" autocomplete="off"></label>
+    <label class="field">현재가 (<span class="cur-unit">원</span>) <input id="aPrice" inputmode="decimal" autocomplete="off"></label>
+    <p class="note" id="aPriceNote"></p>
+  </div>
+  <div class="row">
+    <button class="btn danger" id="aDelete" hidden>삭제</button>
+    <button class="btn ghost" data-close>취소</button>
+    <button class="btn primary" id="aSave">저장</button>
+  </div>
+</div>
+
+<!-- 설정 시트 -->
+<div class="sheet" id="settingsSheet" role="dialog" aria-modal="true">
+  <div class="grip"></div>
+  <h3 id="settingsTitle">설정</h3>
+  <label class="field">월급날 (한 달의 시작일)
+    <input id="sPayday" type="number" inputmode="numeric" min="1" max="31">
+  </label>
+  <p class="note">예: 25를 넣으면 매달 25일부터 다음 달 24일까지를 한 달로 봐요. 31처럼 없는 날짜는 그 달 말일로 계산해요.</p>
+  <label class="field">한 달 예산 (월급 등 한 달 동안 쓸 전체 금액)
+    <input id="sDefault" inputmode="numeric" placeholder="예: 2,500,000">
+  </label>
+  <label class="field" id="sCurWrap">이번 기간 예산 (이번 달만 다르면 수정)
+    <input id="sCur" inputmode="numeric">
+  </label>
+
+  <div id="fixedWrap">
+    <hr class="sep">
+    <div class="list-head"><h2>고정지출 (매달 나가는 돈)</h2><span class="sum num" id="fixedSum"></span></div>
+    <p class="note">월세, 통신비, 구독료처럼 매달 나가는 돈이에요. 예산에서 먼저 빼고 하루 권장액을 계산해요. 추가·삭제는 바로 저장돼요.</p>
+    <div id="fixedList"></div>
+    <div class="search-row fixed-add">
+      <input id="fixName" placeholder="이름 (예: 월세)" autocomplete="off">
+      <input id="fixAmt" class="num" inputmode="numeric" placeholder="금액" autocomplete="off">
+      <button class="btn ghost" id="fixAdd">추가</button>
+    </div>
+  </div>
+
+  <div id="apiWrap">
+    <hr class="sep">
+    <label class="field">주식 시세 주소 (구글 Apps Script)
+      <input id="sPriceApi" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" autocapitalize="off">
+    </label>
+    <p class="note">넣으면 종목 검색과 현재가 자동 갱신이 켜져요. 비워 두면 현재가를 직접 입력해요.</p>
+  </div>
+
+  <div class="row">
+    <button class="btn ghost" data-close id="settingsCancel">닫기</button>
+    <button class="btn primary" id="sSave">저장</button>
+  </div>
+  <hr class="sep">
+  <p class="note">기록은 이 폰의 브라우저 안에만 저장돼요. 브라우저 데이터를 지우면 함께 사라지니 가끔 백업해 두세요.</p>
+  <button class="link-btn" id="exportBtn">백업 파일 저장</button>
+  ·
+  <button class="link-btn" id="importBtn">백업 불러오기</button>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const KEY = 'gagyebu.v1';
+  const CATS = [
+    { id: 'food',  name: '식비', ic: '🍚' },
+    { id: 'cafe',  name: '카페·간식', ic: '☕️' },
+    { id: 'trans', name: '교통', ic: '🚇' },
+    { id: 'shop',  name: '쇼핑', ic: '🛍️' },
+    { id: 'life',  name: '생활', ic: '🏠' },
+    { id: 'fun',   name: '여가', ic: '🎬' },
+    { id: 'etc',   name: '기타', ic: '💸' },
+  ];
+  const INCOME_CATS = [
+    { id: 'pay',     name: '용돈·선물', ic: '💝' },
+    { id: 'side',    name: '부수입', ic: '💼' },
+    { id: 'refund',  name: '환급·캐시백', ic: '↩️' },
+    { id: 'inc_etc', name: '기타 수입', ic: '➕' },
+  ];
+  const catOf = id => CATS.find(c => c.id === id) || INCOME_CATS.find(c => c.id === id) || CATS[CATS.length - 1];
+  const isIncome = x => x.type === 'income';
+
+  // ---------- 저장 ----------
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+  }
+  function normalize(s) {
+    s.budgets ||= {};
+    s.entries ||= [];
+    s.assets ||= { cash: [], stocks: [], fx: 0 };
+    s.fixed ||= [];
+    return s;
+  }
+  let state = normalize(load() || { settings: null });
+  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { toast('저장에 실패했어요. 백업을 먼저 해 두세요.'); }
+  }
+
+  // ---------- 날짜 ----------
+  const pad = n => String(n).padStart(2, '0');
+  const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parse = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const todayDate = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
+  const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+  const payDate = (y, m, day) => {
+    const d = new Date(y, m, 1);
+    return new Date(d.getFullYear(), d.getMonth(), Math.min(day, daysIn(d.getFullYear(), d.getMonth())));
+  };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const diffDays = (a, b) => Math.round((b - a) / 86400000);
+
+  // date가 속한 기간 (월급날 ~ 다음 월급날 전날)
+  function periodOf(date) {
+    const day = state.settings.payday;
+    let start = payDate(date.getFullYear(), date.getMonth(), day);
+    if (date < start) start = payDate(date.getFullYear(), date.getMonth() - 1, day);
+    const next = payDate(start.getFullYear(), start.getMonth() + 1, day);
+    return { start, end: addDays(next, -1), next };
+  }
+
+  // ---------- 포맷 ----------
+  const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+  const md = d => `${d.getMonth() + 1}.${d.getDate()}`;
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const digits = s => Number(String(s).replace(/[^\d]/g, '')) || 0;
+  const dec = s => { const n = parseFloat(String(s).replace(/,/g, '')); return isFinite(n) ? n : 0; };
+  const fmtNum = n => n.toLocaleString('ko-KR', { maximumFractionDigits: 4 });
+  const money = (n, cur) => cur === 'USD'
+    ? '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : won(n);
+  const signed = (n, f) => (n > 0 ? '+' : n < 0 ? '−' : '') + f(Math.abs(n));
+  const pct = n => n.toFixed(2);
+  const tone = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
+  // 소수점 허용 입력 (해외 주식 가격, 소수점 수량)
+  function formatDecInput(el) {
+    el.addEventListener('input', () => {
+      let v = el.value.replace(/[^\d.]/g, '');
+      const i = v.indexOf('.');
+      if (i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '');
+      const [a, b] = v.split('.');
+      el.value = (a ? Number(a).toLocaleString('ko-KR') : (b !== undefined ? '0' : '')) + (b !== undefined ? '.' + b : '');
+    });
+  }
+  function formatInput(el) {
+    el.addEventListener('input', () => {
+      const n = digits(el.value);
+      el.value = n ? n.toLocaleString('ko-KR') : '';
+    });
+  }
+
+  // ---------- 화면 ----------
+  const $ = id => document.getElementById(id);
+  let viewDate = todayDate(); // 보고 있는 기간 안의 아무 날짜
+  let selDay = null;          // 달력에서 고른 날짜 (iso), 없으면 전체 내역
+
+  // 달력 칸에 들어갈 짧은 금액: 8,500 / 1.2만 / 150만
+  function short(n) {
+    if (n < 10000) return n.toLocaleString('ko-KR');
+    const man = n / 10000;
+    return (man >= 100 ? Math.round(man) : Math.round(man * 10) / 10) + '만';
+  }
+
+  function budgetFor(p) {
+    const k = iso(p.start);
+    return state.budgets[k] ?? state.settings.defaultBudget;
+  }
+
+  function render() {
+    if (!state.settings) return;
+    applyTab();
+    renderBudget();
+    renderAssets();
+  }
+
+  function renderBudget() {
+    const today = todayDate();
+    const p = periodOf(viewDate);
+    const cur = periodOf(today);
+    const isCurrent = iso(p.start) === iso(cur.start);
+    const isPast = p.end < today;
+
+    $('periodLabel').textContent = `${p.start.getFullYear()}. ${md(p.start)} – ${md(p.end)}`;
+    $('nextBtn').disabled = isCurrent;
+
+    const s = iso(p.start), e = iso(p.end);
+    const all = state.entries.filter(x => x.date >= s && x.date <= e)
+      .sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts);
+    const entries = all.filter(x => !isIncome(x));     // 지출만
+    const sum = xs => xs.reduce((a, x) => a + x.amount, 0);
+    const baseBudget = budgetFor(p);
+    const fixedTotal = sum(state.fixed);
+    const income = sum(all.filter(isIncome));
+    const budget = baseBudget - fixedTotal + income;    // 실제로 쓸 수 있는 돈
+    const spent = sum(entries);
+    const left = budget - spent;
+
+    const totalDays = diffDays(p.start, p.next);
+    const t = iso(today);
+    const spentToday = sum(entries.filter(x => x.date === t));
+
+    const heroV = $('heroValue');
+    heroV.classList.remove('over');
+
+    if (isCurrent) {
+      const daysLeft = diffDays(today, p.next);        // 오늘 포함
+      const leftStartOfToday = left + spentToday;       // 오늘 쓰기 전 남아 있던 돈
+      const perDay = leftStartOfToday / daysLeft;       // 오늘 기준 하루 권장액
+      const todayLeft = perDay - spentToday;
+      const tomorrowPerDay = daysLeft > 1 ? left / (daysLeft - 1) : 0;
+
+      $('heroLabel').textContent = '오늘 쓸 수 있는 돈';
+      heroV.textContent = won(Math.max(todayLeft, 0));
+      if (todayLeft < 0) {
+        heroV.textContent = '−' + won(-todayLeft);
+        heroV.classList.add('over');
+      }
+      let hint = `하루 권장 <b>${won(Math.max(perDay, 0))}</b> · 남은 기간 <b>${daysLeft}일</b>`;
+      if (left < 0) hint = `예산보다 <b>${won(-left)}</b> 더 썼어요 · 남은 기간 ${daysLeft}일`;
+      else if (spentToday > 0 && daysLeft > 1) hint += `<br>내일부터는 하루 <b>${won(tomorrowPerDay)}</b>씩 쓰면 돼요`;
+      $('heroHint').innerHTML = hint;
+    } else {
+      $('heroLabel').textContent = isPast ? '이 기간 결과' : '';
+      heroV.textContent = left >= 0 ? `${won(left)} 남김` : `${won(-left)} 초과`;
+      if (left < 0) heroV.classList.add('over');
+      $('heroHint').innerHTML = `하루 평균 <b>${won(spent / totalDays)}</b> 썼어요 (${totalDays}일)`;
+    }
+
+    $('sBudget').textContent = won(budget);
+    const n = v => v.toLocaleString('ko-KR');
+    const parts = [`예산 ${n(baseBudget)}`];
+    if (fixedTotal) parts.push(`− 고정지출 ${n(fixedTotal)}`);
+    if (income) parts.push(`+ 수입 ${n(income)}`);
+    $('breakdown').textContent = parts.length > 1 ? parts.join(' ') : '';
+    $('breakdown').hidden = parts.length < 2;
+    $('quickCard').hidden = !(isCurrent || selDay);
+    renderFreq();
+    $('sSpent').textContent = won(spent);
+    $('sLeft').textContent = won(left);
+    $('sLeft').style.color = left < 0 ? 'var(--bad)' : '';
+
+    const used = budget > 0 ? Math.min(spent / budget, 1) * 100 : 100;
+    const elapsed = isCurrent ? (diffDays(p.start, today) + 1) / totalDays : 1;
+    $('barFill').style.width = used + '%';
+    $('barFill').style.background = spent / budget > elapsed + 0.05 ? 'var(--warn)' : 'var(--accent)';
+    if (spent > budget) $('barFill').style.background = 'var(--bad)';
+    $('barToday').style.left = `calc(${elapsed * 100}% - 1px)`;
+    $('barToday').style.display = isCurrent ? '' : 'none';
+    $('barLeft').textContent = `쓸 수 있는 돈의 ${budget > 0 ? Math.round(spent / budget * 100) : 100}% 사용`;
+    $('barRight').textContent = isCurrent ? `갱신일까지 ${diffDays(today, p.next)}일 남음` : '';
+
+    // 카테고리
+    const byCat = {};
+    entries.forEach(x => byCat[x.cat] = (byCat[x.cat] || 0) + x.amount);
+    const catRows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+    const maxCat = catRows[0]?.[1] || 1;
+    $('cats').innerHTML = catRows.length ? catRows.map(([id, v]) => {
+      const c = catOf(id);
+      return `<div class="cat-row"><span>${c.ic} ${c.name}</span>
+        <div class="mini"><div style="width:${v / maxCat * 100}%"></div></div>
+        <span class="num">${won(v)}</span></div>`;
+    }).join('') : '<div class="empty">아직 기록이 없어요</div>';
+
+    // 달력
+    const byDay = {};
+    entries.forEach(x => byDay[x.date] = (byDay[x.date] || 0) + x.amount);
+    const avg = Math.max(budget, 0) / totalDays;
+    $('calAvg').textContent = won(avg);
+    let cells = '';
+    for (let i = 0; i < p.start.getDay(); i++) cells += '<div class="cell pad"></div>';
+    for (let d = p.start; d <= p.end; d = addDays(d, 1)) {
+      const k = iso(d), v = byDay[k] || 0;
+      const cls = ['cell'];
+      if (v) cls.push('spent');
+      if (v > avg) cls.push('over');
+      if (k === t) cls.push('today');
+      if (k > t) cls.push('future');
+      if (k === selDay) cls.push('sel');
+      const monthTag = (d.getDate() === 1 || +d === +p.start) ? `<small>${d.getMonth() + 1}월</small>` : '';
+      cells += `<button class="${cls.join(' ')}" data-day="${k}">
+        <span class="d">${monthTag}${d.getDate()}</span>
+        <span class="a num">${v ? short(v) : ''}</span></button>`;
+    }
+    $('cal').innerHTML = cells;
+
+    // 내역 (달력에서 날짜를 고르면 그날만)
+    const shown = selDay ? all.filter(x => x.date === selDay) : all;
+    if (selDay) {
+      const sd = parse(selDay);
+      $('listTitle').textContent = `${sd.getMonth() + 1}월 ${sd.getDate()}일 (${WD[sd.getDay()]}) · ${won(byDay[selDay] || 0)}`;
+    } else {
+      $('listTitle').textContent = '내역';
+    }
+    $('showAllBtn').hidden = !selDay;
+
+    const groups = {};
+    shown.forEach(x => (groups[x.date] ||= []).push(x));
+    const dates = Object.keys(groups).sort().reverse();
+    $('list').innerHTML = dates.length ? dates.map(d => {
+      const dd = parse(d);
+      const daySpent = sum(groups[d].filter(x => !isIncome(x)));
+      const label = d === t ? '오늘' : `${md(dd)} (${WD[dd.getDay()]})`;
+      return (selDay ? '' : `<div class="day-head"><span>${label}</span><span class="num">${won(daySpent)}</span></div>`) +
+        groups[d].map(x => {
+          const c = catOf(x.cat), inc = isIncome(x);
+          return `<div class="item" data-id="${x.id}">
+            <div class="ic">${c.ic}</div>
+            <div class="meta"><div class="t">${esc(x.memo || c.name)}</div><div class="s">${inc ? '수입 · ' : ''}${c.name}</div></div>
+            <div class="amt num${inc ? ' inc' : ''}">${inc ? '+' : ''}${won(x.amount)}</div></div>`;
+        }).join('');
+    }).join('') : `<div class="empty">${selDay ? '이 날은 기록이 없어요' : '아래 버튼으로 첫 지출을 기록해 보세요'}</div>`;
+
+    if (selDay) {
+      const sd = parse(selDay);
+      $('addBtn').textContent = `+ ${sd.getMonth() + 1}월 ${sd.getDate()}일에 지출 기록`;
+    } else {
+      $('addBtn').textContent = isCurrent ? '+ 지출 기록' : '+ 이 기간에 지출 기록';
+    }
+  }
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- 시트 ----------
+  let openSheet = null;
+  function showSheet(id) {
+    openSheet = $(id);
+    $('scrim').classList.add('open');
+    openSheet.classList.add('open');
+  }
+  function hideSheet() {
+    if (!state.settings) return; // 첫 설정은 닫을 수 없음
+    $('scrim').classList.remove('open');
+    openSheet?.classList.remove('open');
+    openSheet = null;
+  }
+  $('scrim').addEventListener('click', hideSheet);
+  document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', hideSheet));
+
+  // 지출·수입 입력
+  let editingId = null, selCat = 'food', fType = 'expense';
+  const paintEntry = () => {
+    const inc = fType === 'income';
+    document.querySelectorAll('#fType .tab').forEach(b => b.classList.toggle('on', b.dataset.type === fType));
+    $('fCats').innerHTML = (inc ? INCOME_CATS : CATS)
+      .map(c => `<button class="chip${c.id === selCat ? ' on' : ''}" data-cat="${c.id}">${c.ic} ${c.name}</button>`).join('');
+    $('entryTitle').textContent = (inc ? '수입' : '지출') + (editingId ? ' 수정' : ' 기록');
+    $('fMemo').placeholder = inc ? '예: 중고거래 판매' : '예: 점심 김밥';
+    $('fIncomeNote').hidden = !inc;
+  };
+  $('fCats').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    selCat = b.dataset.cat; paintEntry();
+  });
+  $('fType').addEventListener('click', e => {
+    const b = e.target.closest('.tab'); if (!b || b.dataset.type === fType) return;
+    fType = b.dataset.type;
+    selCat = fType === 'income' ? 'pay' : 'food';
+    paintEntry();
+  });
+  formatInput($('fAmount'));
+  $('fAmount').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('fSave').click(); } });
+
+  // 기록할 기본 날짜: 달력에서 고른 날 > 오늘(보는 기간 안이면) > 보는 기간 마지막 날
+  function defaultDate() {
+    const p = periodOf(viewDate), today = todayDate();
+    return selDay || iso((today >= p.start && today <= p.end) ? today : p.end);
+  }
+
+  function openEntry(entry) {
+    editingId = entry?.id || null;
+    fType = entry && isIncome(entry) ? 'income' : 'expense';
+    $('fAmount').value = entry ? entry.amount.toLocaleString('ko-KR') : '';
+    $('fMemo').value = entry?.memo || '';
+    $('fDate').value = entry?.date || defaultDate();
+    selCat = entry?.cat || 'food';
+    paintEntry();
+    $('fDelete').hidden = !entry;
+    showSheet('entrySheet');
+    if (!entry) setTimeout(() => $('fAmount').focus(), 250);
+  }
+  $('addBtn').addEventListener('click', () => tab === 'assets' ? openAsset('cash', null) : openEntry(null));
+  $('list').addEventListener('click', e => {
+    const it = e.target.closest('.item'); if (!it) return;
+    openEntry(state.entries.find(x => x.id === it.dataset.id));
+  });
+
+  $('fSave').addEventListener('click', () => {
+    const amount = digits($('fAmount').value);
+    if (!amount) { toast('금액을 입력해 주세요'); $('fAmount').focus(); return; }
+    const date = $('fDate').value || iso(todayDate());
+    const data = { amount, cat: selCat, memo: $('fMemo').value.trim(), date, type: fType };
+    if (editingId) {
+      Object.assign(state.entries.find(x => x.id === editingId), data);
+    } else {
+      state.entries.push({ id: newId(), ts: Date.now(), ...data });
+    }
+    save();
+    viewDate = parse(date);
+    hideSheet(); render();
+    toast(editingId ? '수정했어요' : fType === 'income' ? `수입 ${won(amount)} 추가했어요` : `${won(amount)} 기록했어요`);
+  });
+
+  // ---------- 빠른 입력 ----------
+  function quickAdd(data) {
+    const entry = { id: newId(), ts: Date.now(), type: 'expense', memo: '', cat: 'etc', date: defaultDate(), ...data };
+    state.entries.push(entry);
+    save(); render();
+    toast(`${data.memo ? data.memo + ' ' : ''}${won(entry.amount)} 기록했어요`, {
+      label: '되돌리기',
+      fn: () => { state.entries = state.entries.filter(x => x.id !== entry.id); save(); render(); toast('취소했어요'); },
+    });
+    return entry;
+  }
+  formatInput($('qAmount'));
+  function quickSave() {
+    const amount = digits($('qAmount').value);
+    if (!amount) { $('qAmount').focus(); return; }
+    $('qAmount').value = '';
+    $('qAmount').blur();
+    const entry = quickAdd({ amount });
+    toast(`${won(amount)} 기록했어요`, { label: '카테고리 정하기', fn: () => openEntry(entry) });
+  }
+  $('qSave').addEventListener('click', quickSave);
+  $('qAmount').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); quickSave(); } });
+
+  // 자주 쓰는 내역: 최근 90일 동안 같은 메모·금액·카테고리로 2번 이상 기록한 것
+  let freqItems = [];
+  function renderFreq() {
+    const since = iso(addDays(todayDate(), -90));
+    const counts = {};
+    state.entries.forEach(x => {
+      if (isIncome(x) || !x.memo || x.date < since) return;
+      const k = `${x.memo}|${x.amount}|${x.cat}`;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    freqItems = Object.entries(counts).filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 6)
+      .map(([k]) => { const [memo, amount, cat] = k.split('|'); return { memo, amount: +amount, cat }; });
+    $('qFreq').innerHTML = freqItems.map((f, i) =>
+      `<button class="chip" data-i="${i}">${catOf(f.cat).ic} ${esc(f.memo)} ${short(f.amount)}</button>`).join('');
+  }
+  $('qFreq').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    quickAdd({ ...freqItems[b.dataset.i] });
+  });
+
+  // ---------- 고정지출 ----------
+  formatInput($('fixAmt'));
+  function renderFixed() {
+    const total = state.fixed.reduce((a, f) => a + f.amount, 0);
+    $('fixedSum').textContent = total ? `월 ${won(total)}` : '';
+    $('fixedList').innerHTML = state.fixed.map(f => `
+      <div class="fixed-row"><span>${esc(f.name)}</span><span class="num">${won(f.amount)}</span>
+      <button data-id="${f.id}" aria-label="${esc(f.name)} 삭제">×</button></div>`).join('')
+      || '<div class="empty">아직 없어요</div>';
+  }
+  $('fixAdd').addEventListener('click', () => {
+    const name = $('fixName').value.trim(), amount = digits($('fixAmt').value);
+    if (!name) { toast('이름을 입력해 주세요'); $('fixName').focus(); return; }
+    if (!amount) { toast('금액을 입력해 주세요'); $('fixAmt').focus(); return; }
+    state.fixed.push({ id: newId(), name, amount });
+    $('fixName').value = ''; $('fixAmt').value = '';
+    save(); renderFixed(); render();
+    $('fixName').focus();
+  });
+  $('fixAmt').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('fixAdd').click(); } });
+  $('fixedList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-id]'); if (!b) return;
+    state.fixed = state.fixed.filter(f => f.id !== b.dataset.id);
+    save(); renderFixed(); render();
+  });
+  $('fDelete').addEventListener('click', () => {
+    if (!editingId || !confirm('이 기록을 삭제할까요?')) return;
+    state.entries = state.entries.filter(x => x.id !== editingId);
+    save(); hideSheet(); render(); toast('삭제했어요');
+  });
+
+  // 설정
+  formatInput($('sDefault')); formatInput($('sCur'));
+  function openSettings() {
+    const first = !state.settings;
+    $('settingsTitle').textContent = first ? '처음 설정' : '설정';
+    $('settingsCancel').hidden = first;
+    $('sPayday').value = state.settings?.payday || 25;
+    $('sDefault').value = state.settings ? state.settings.defaultBudget.toLocaleString('ko-KR') : '';
+    $('sCurWrap').hidden = first;
+    if (!first) $('sCur').value = budgetFor(periodOf(viewDate)).toLocaleString('ko-KR');
+    $('sPriceApi').value = state.priceApi || '';
+    $('apiWrap').hidden = first;
+    renderFixed();
+    showSheet('settingsSheet');
+  }
+  $('settingsBtn').addEventListener('click', openSettings);
+  $('sSave').addEventListener('click', () => {
+    const payday = Math.min(31, Math.max(1, parseInt($('sPayday').value, 10) || 0));
+    const defaultBudget = digits($('sDefault').value);
+    if (!parseInt($('sPayday').value, 10)) { toast('월급날을 입력해 주세요'); return; }
+    if (!defaultBudget) { toast('한 달 예산을 입력해 주세요'); return; }
+    const priceApi = $('sPriceApi').value.trim();
+    if (priceApi && !/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(priceApi)) {
+      toast('시세 주소는 https://script.google.com/macros/s/…/exec 형태여야 해요'); return;
+    }
+    const apiChanged = (state.priceApi || '') !== priceApi;
+    state.priceApi = priceApi || null;
+    const first = !state.settings;
+    state.settings = { payday, defaultBudget };
+    if (!first) {
+      const k = iso(periodOf(viewDate).start);
+      const cur = digits($('sCur').value);
+      if (cur && cur !== defaultBudget) state.budgets[k] = cur; else delete state.budgets[k];
+    }
+    save(); hideSheet(); render();
+    const fixedTotal = state.fixed.reduce((a, f) => a + f.amount, 0);
+    if (fixedTotal >= defaultBudget) toast('고정지출이 예산보다 많아요. 예산을 확인해 주세요');
+    else toast(first ? '준비 완료! 지출을 기록해 보세요' : '저장했어요');
+    if (apiChanged && priceApi) checkApi();
+  });
+
+  // 기간 이동
+  $('prevBtn').addEventListener('click', () => { viewDate = addDays(periodOf(viewDate).start, -1); selDay = null; render(); });
+  $('nextBtn').addEventListener('click', () => { viewDate = periodOf(viewDate).next; selDay = null; render(); });
+
+  // 달력 날짜 선택 (한 번 더 누르면 해제)
+  $('cal').addEventListener('click', e => {
+    const c = e.target.closest('.cell[data-day]'); if (!c) return;
+    selDay = selDay === c.dataset.day ? null : c.dataset.day;
+    render();
+  });
+  $('showAllBtn').addEventListener('click', () => { selDay = null; render(); });
+
+  // ---------- 재산 ----------
+  let tab = 'budget';
+  try { tab = localStorage.getItem('gagyebu.tab') || 'budget'; } catch (e) {}
+
+  function applyTab() {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    $('viewBudget').hidden = tab !== 'budget';
+    $('viewAssets').hidden = tab !== 'assets';
+    $('periodNav').hidden = tab !== 'budget';
+    $('assetsTitle').hidden = tab !== 'assets';
+  }
+  document.querySelector('.tabs').addEventListener('click', e => {
+    const b = e.target.closest('.tab'); if (!b) return;
+    tab = b.dataset.tab;
+    try { localStorage.setItem('gagyebu.tab', tab); } catch (e) {}
+    render();
+    window.scrollTo(0, 0);
+    if (tab === 'assets') refreshPrices(false);
+  });
+
+  const fmtTime = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+
+  function renderAssets() {
+    if (tab !== 'assets') return;
+    const A = state.assets, fx = A.fx || 0;
+    const cashTotal = A.cash.reduce((a, c) => a + c.amount, 0);
+    let stockVal = 0, stockCost = 0, needFx = false;
+    A.stocks.forEach(s => {
+      if (s.cur === 'USD' && !fx) { needFx = true; return; }
+      const r = s.cur === 'USD' ? fx : 1;
+      stockVal += s.qty * s.price * r;
+      stockCost += s.qty * s.avg * r;
+    });
+    const total = cashTotal + stockVal;
+    const pl = stockVal - stockCost, plPct = stockCost ? pl / stockCost * 100 : 0;
+
+    $('aTotal').textContent = won(total);
+    let hint = A.stocks.length
+      ? `주식 평가손익 <b class="${tone(pl)}">${signed(pl, won)} (${signed(plPct, pct)}%)</b>`
+      : (A.cash.length ? '보유 주식도 추가해 보세요' : '아래 버튼으로 통장·예금과 주식을 추가해 보세요');
+    if (needFx) hint += '<br>달러 환율이 없어서 해외 주식은 합계에서 빠졌어요';
+    $('aHint').innerHTML = hint;
+
+    const cp = total ? cashTotal / total * 100 : 0;
+    $('alloc').hidden = !total;
+    $('allocCash').style.width = cp + '%';
+    $('allocStock').style.width = (total ? 100 - cp : 0) + '%';
+    $('allocCashL').textContent = total ? `현금·예금 ${Math.round(cp)}%` : '';
+    $('allocStockL').textContent = total ? `주식 ${100 - Math.round(cp)}%` : '';
+
+    $('cashSum').textContent = A.cash.length ? won(cashTotal) : '';
+    $('cashList').innerHTML = A.cash.length ? A.cash.map(c => `
+      <div class="item" data-kind="cash" data-id="${c.id}">
+        <div class="ic">💰</div>
+        <div class="meta"><div class="t">${esc(c.name)}</div></div>
+        <div class="amt num">${won(c.amount)}</div></div>`).join('')
+      : '<div class="empty">통장, 예금, 현금을 추가해 보세요</div>';
+
+    $('stockSum').textContent = A.stocks.length ? won(stockVal) : '';
+    $('stockList').innerHTML = A.stocks.length ? A.stocks.map(s => {
+      const val = s.qty * s.price, cost = s.qty * s.avg;
+      const p = cost ? (val - cost) / cost * 100 : 0;
+      const day = s.chg != null ? ` <span class="${tone(s.chg)}">${signed(s.chg, pct)}%</span>` : '';
+      // 해외 주식: 달러 평가액 아래에 원화 환산액
+      const usdKrw = s.cur === 'USD' ? `<small class="krw">${fx ? won(val * fx) : '환율 없음'}</small>` : '';
+      return `<div class="item" data-kind="stock" data-id="${s.id}">
+        <div class="ic">📈</div>
+        <div class="meta"><div class="t">${esc(s.name)}</div>
+          <div class="s num">${fmtNum(s.qty)}주 · ${money(s.price, s.cur)}${day}</div></div>
+        <div class="amt num">${money(val, s.cur)}${usdKrw}<small class="${tone(p)}">${signed(p, pct)}%</small></div></div>`;
+    }).join('') : '<div class="empty">보유 주식을 추가해 보세요</div>';
+
+    $('stockNote').hidden = !A.stocks.length;
+    $('refreshRow').hidden = !(state.priceApi && A.stocks.some(s => s.key));
+    $('refreshInfo').textContent = (A.pricedAt ? `시세 ${fmtTime(A.pricedAt)} 기준` : '')
+      + (state.priceApi && liveMarket() ? ' · 장중 1분마다 자동 갱신' : '');
+    $('fxWrap').hidden = !A.stocks.some(s => s.cur === 'USD');
+    if (document.activeElement !== $('fxInput')) $('fxInput').value = fx ? fmtNum(fx) : '';
+    $('addBtn').textContent = '+ 자산 추가';
+  }
+
+  // 시세 프록시 (구글 Apps Script) 호출
+  async function api(action, params) {
+    const u = new URL(state.priceApi);
+    u.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
+    const r = await fetch(u);
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return j;
+  }
+  async function checkApi() {
+    try { await api('search', { q: '삼성전자' }); toast('시세 주소 연결 확인 완료'); refreshPrices(true); }
+    catch (e) { toast('시세 주소에 연결하지 못했어요. 배포 설정을 확인해 주세요'); }
+  }
+  async function fetchFx() {
+    const r = await fetch('https://open.er-api.com/v6/latest/USD');
+    const k = (await r.json())?.rates?.KRW;
+    if (!k) throw new Error('fx');
+    state.assets.fx = Math.round(k * 100) / 100;
+  }
+
+  let refreshing = false;
+  async function refreshPrices(force, silent) {
+    const A = state.assets;
+    if (refreshing) return;
+    if (!force && A.checkedAt && Date.now() - A.checkedAt < 5 * 60 * 1000) return;
+    refreshing = true;
+    $('refreshBtn').textContent = '불러오는 중…';
+    const tasks = [];
+    if (A.stocks.some(s => s.cur === 'USD')) tasks.push(fetchFx());
+    const keys = [...new Set(A.stocks.filter(s => s.key).map(s => s.key))];
+    if (state.priceApi && keys.length) {
+      tasks.push(api('quotes', { codes: keys.join(',') }).then(r => {
+        A.stocks.forEach(s => {
+          const q = r.quotes?.[s.key];
+          if (q && !q.error) { s.price = q.price; s.chg = q.chg; }
+        });
+        A.pricedAt = Date.now();
+      }));
+    }
+    const results = await Promise.allSettled(tasks);
+    A.checkedAt = Date.now();
+    refreshing = false;
+    $('refreshBtn').textContent = '시세 새로고침';
+    save(); render();
+    if (force && !silent && tasks.length) toast(results.some(r => r.status === 'rejected') ? '시세를 일부 불러오지 못했어요' : '시세를 새로 불러왔어요');
+  }
+  $('refreshBtn').addEventListener('click', () => refreshPrices(true));
+
+  // 장중에는 재산 탭을 보고 있는 동안 1분마다 자동 갱신
+  // 국내: 08:00~20:00 (정규장 + 넥스트레이드), 미국: 09:30~16:00 뉴욕 시간. 공휴일은 따로 거르지 않음
+  function marketOpen(zone, openMin, closeMin) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date());
+    const g = t => parts.find(p => p.type === t).value;
+    if (g('weekday') === 'Sat' || g('weekday') === 'Sun') return false;
+    const m = +g('hour') * 60 + +g('minute');
+    return m >= openMin && m < closeMin;
+  }
+  function liveMarket() {
+    const keys = state.assets.stocks.filter(s => s.key).map(s => s.key);
+    return (keys.some(k => k.startsWith('KOR:')) && marketOpen('Asia/Seoul', 8 * 60, 20 * 60))
+        || (keys.some(k => k.startsWith('USA:')) && marketOpen('America/New_York', 9 * 60 + 30, 16 * 60));
+  }
+  setInterval(() => {
+    if (tab === 'assets' && !document.hidden && !openSheet && state.priceApi && liveMarket()) refreshPrices(true, true);
+  }, 60 * 1000);
+  formatDecInput($('fxInput'));
+  $('fxInput').addEventListener('change', () => { state.assets.fx = dec($('fxInput').value); save(); render(); });
+
+  // 자산 입력 시트
+  let aEdit = null, aKind = 'cash', aCur = 'KRW', aPick = null; // aPick: 시세 연결된 종목 {key, label}
+  formatInput($('aAmount'));
+  ['aQty', 'aAvg', 'aPrice'].forEach(id => formatDecInput($(id)));
+
+  function paintAsset() {
+    document.querySelectorAll('#aType .chip').forEach(b => b.classList.toggle('on', b.dataset.type === aKind));
+    document.querySelectorAll('#aCur .chip').forEach(b => b.classList.toggle('on', b.dataset.cur === aCur));
+    document.querySelectorAll('.cur-unit').forEach(s => s.textContent = aCur === 'USD' ? '달러' : '원');
+    const stock = aKind === 'stock';
+    $('aCashFields').hidden = stock;
+    $('aStockFields').hidden = !stock;
+    $('aSearchWrap').hidden = !(stock && state.priceApi);
+    $('aName').placeholder = stock ? '예: 삼성전자' : '예: 토스뱅크 통장, 정기예금';
+    $('aCodeNote').hidden = !(stock && aPick);
+    if (aPick) $('aCodeNote').textContent = `✓ 시세 연결됨 · ${aPick.label}`;
+    $('aPriceNote').textContent = aPick
+      ? '현재가는 재산 화면을 열 때 자동으로 갱신돼요.'
+      : state.priceApi
+        ? '위에서 종목을 검색해 고르면 현재가가 자동으로 갱신돼요.'
+        : '설정에 시세 주소를 넣으면 종목 검색과 현재가 자동 갱신이 켜져요. 지금은 직접 입력해 주세요.';
+  }
+
+  function openAsset(kind, item) {
+    aEdit = item ? { kind, id: item.id } : null;
+    aKind = kind;
+    aCur = item?.cur || 'KRW';
+    aPick = item?.key ? { key: item.key, label: item.label || item.key.split(':')[1] } : null;
+    $('assetTitle').textContent = item ? '자산 수정' : '자산 추가';
+    $('aType').hidden = !!item;
+    $('aName').value = item?.name || '';
+    $('aAmount').value = kind === 'cash' && item ? item.amount.toLocaleString('ko-KR') : '';
+    $('aQty').value = item?.qty != null ? fmtNum(item.qty) : '';
+    $('aAvg').value = item?.avg != null ? fmtNum(item.avg) : '';
+    $('aPrice').value = item?.price != null ? fmtNum(item.price) : '';
+    $('aQuery').value = '';
+    $('aResults').innerHTML = '';
+    $('aDelete').hidden = !item;
+    paintAsset();
+    showSheet('assetSheet');
+  }
+
+  $('aType').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    aKind = b.dataset.type; paintAsset();
+  });
+  $('aCur').addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    aCur = b.dataset.cur; paintAsset();
+  });
+  $('aName').addEventListener('input', () => { if (aPick) { aPick = null; paintAsset(); } }); // 이름을 바꾸면 시세 연결 해제
+
+  let searchItems = [];
+  async function doSearch() {
+    const q = $('aQuery').value.trim(); if (!q) return;
+    if (/https?:\/\//.test(q)) return resolveLink(q);
+    $('aResults').innerHTML = '<div class="empty">검색 중…</div>';
+    try {
+      searchItems = (await api('search', { q })).items || [];
+      $('aResults').innerHTML = searchItems.length
+        ? searchItems.map((it, i) => `<button class="result" data-i="${i}"><span>${esc(it.name)}</span><small>${esc(it.symbol)} · ${esc(it.market)}</small></button>`).join('')
+        : '<div class="empty">검색 결과가 없어요 (국내·미국 주식만 지원)</div>';
+    } catch (e) {
+      $('aResults').innerHTML = '<div class="empty">검색에 실패했어요. 설정의 시세 주소를 확인해 주세요</div>';
+    }
+  }
+  $('aSearchBtn').addEventListener('click', doSearch);
+  $('aQuery').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+  // 종목 선택: 이름·티커·통화를 채우고 현재가를 불러옴 (quote가 있으면 그대로 사용)
+  async function pickStock(it, quote) {
+    $('aName').value = it.name;
+    aPick = { key: it.key, label: `${it.symbol} · ${it.market}` };
+    aCur = it.key.startsWith('KOR:') ? 'KRW' : 'USD';
+    $('aResults').innerHTML = '';
+    $('aQuery').value = '';
+    paintAsset();
+    $('aPrice').value = '';
+    $('aPrice').placeholder = '현재가 불러오는 중…';
+    try {
+      const q = quote || (await api('quotes', { codes: it.key })).quotes[it.key];
+      if (q && !q.error) $('aPrice').value = fmtNum(q.price);
+    } catch (err) {}
+    $('aPrice').placeholder = '';
+    $('aQty').focus();
+  }
+  $('aResults').addEventListener('click', e => {
+    const b = e.target.closest('.result'); if (!b) return;
+    pickStock(searchItems[b.dataset.i]);
+  });
+
+  // 증권 앱 링크 → 종목 자동 인식
+  async function resolveLink(text) {
+    $('aResults').innerHTML = '<div class="empty">링크에서 종목 찾는 중…</div>';
+    try {
+      const r = await api('resolve', { url: text });
+      pickStock(r.item, r.quote);
+      toast(`${r.item.name} (${r.item.symbol}) 인식했어요`);
+    } catch (e) {
+      $('aResults').innerHTML = `<div class="empty">${esc(e.message || '링크를 인식하지 못했어요')}. 이름으로 검색해 주세요</div>`;
+    }
+  }
+  $('aQuery').addEventListener('paste', () => setTimeout(() => {
+    if (/https?:\/\//.test($('aQuery').value)) resolveLink($('aQuery').value.trim());
+  }, 0));
+
+  $('aSave').addEventListener('click', () => {
+    const name = $('aName').value.trim();
+    if (!name) { toast('이름을 입력해 주세요'); $('aName').focus(); return; }
+    const A = state.assets;
+    if (aKind === 'cash') {
+      const amount = digits($('aAmount').value);
+      if (!amount) { toast('금액을 입력해 주세요'); return; }
+      if (aEdit) Object.assign(A.cash.find(x => x.id === aEdit.id), { name, amount });
+      else A.cash.push({ id: newId(), name, amount });
+    } else {
+      const qty = dec($('aQty').value), price = dec($('aPrice').value);
+      const avg = dec($('aAvg').value) || price;
+      if (!qty) { toast('보유 수량을 입력해 주세요'); return; }
+      if (!price) { toast('현재가를 입력해 주세요'); return; }
+      const data = { name, qty, avg, price, cur: aCur, key: aPick?.key || null, label: aPick?.label || null };
+      if (aEdit) {
+        const s = A.stocks.find(x => x.id === aEdit.id);
+        if (!data.key) data.chg = null;
+        Object.assign(s, data);
+      } else {
+        A.stocks.push({ id: newId(), chg: null, ...data });
+      }
+    }
+    save(); hideSheet(); render(); toast('저장했어요');
+    if (aKind === 'stock' && aCur === 'USD' && !A.fx) refreshPrices(true);
+  });
+  $('aDelete').addEventListener('click', () => {
+    if (!aEdit || !confirm('이 자산을 삭제할까요?')) return;
+    const A = state.assets, list = aEdit.kind === 'cash' ? 'cash' : 'stocks';
+    A[list] = A[list].filter(x => x.id !== aEdit.id);
+    save(); hideSheet(); render(); toast('삭제했어요');
+  });
+  ['cashList', 'stockList'].forEach(id => $(id).addEventListener('click', e => {
+    const it = e.target.closest('.item'); if (!it) return;
+    const kind = it.dataset.kind;
+    openAsset(kind, state.assets[kind === 'cash' ? 'cash' : 'stocks'].find(x => x.id === it.dataset.id));
+  }));
+
+  // 백업
+  $('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `가계부-백업-${iso(todayDate())}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!data.settings || !Array.isArray(data.entries)) throw 0;
+      if (!confirm(`기록 ${data.entries.length}개를 불러올까요? 지금 기록은 덮어써져요.`)) return;
+      state = normalize(data);
+      save(); hideSheet(); render(); toast('불러왔어요');
+    } catch { toast('백업 파일을 읽지 못했어요'); }
+    e.target.value = '';
+  });
+
+  // 토스트
+  let tt;
+  // action: { label, fn } 을 넘기면 토스트에 버튼이 붙고 조금 더 오래 보여요
+  function toast(msg, action) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.style.pointerEvents = action ? 'auto' : 'none';
+    if (action) {
+      const b = document.createElement('button');
+      b.className = 'act';
+      b.textContent = action.label;
+      b.onclick = () => { el.classList.remove('show'); action.fn(); };
+      el.appendChild(b);
+    }
+    el.classList.add('show');
+    clearTimeout(tt);
+    tt = setTimeout(() => { el.classList.remove('show'); el.style.pointerEvents = 'none'; }, action ? 4000 : 1800);
+  }
+
+  // 날짜가 바뀌면 다시 계산 (앱을 켜 둔 채 자정을 넘길 때)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      viewDate = todayDate(); render();
+      if (tab === 'assets') refreshPrices(false);
+    }
+  });
+
+  if (!state.settings) openSettings();
+  else { render(); if (tab === 'assets') refreshPrices(false); }
+})();
+</script>
+</body>
+</html>
