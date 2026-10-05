@@ -1410,6 +1410,7 @@
     const f = e.target.files[0]; if (!f) return;
     try {
       const data = JSON.parse(await f.text());
+      if (data.gagyebu === 'merge') return mergeImport(data);
       if (!data.settings || !Array.isArray(data.entries)) throw 0;
       if (!confirm(`기록 ${data.entries.length}개를 불러올까요? 지금 기록은 덮어써져요.`)) return;
       state = normalize(data);
@@ -1417,6 +1418,27 @@
     } catch { toast('백업 파일을 읽지 못했어요'); }
     e.target.value = '';
   });
+
+  // "기존 기록에 추가" 파일: { gagyebu: 'merge', entries: [...], cash: [{ name, amount }] }
+  // 같은 id, 또는 같은 날짜·금액·종류의 기록이 이미 있으면 중복으로 보고 건너뜀
+  function mergeImport(data) {
+    const incoming = (data.entries || []).filter(x => x && x.date && x.amount > 0);
+    const dup = x => state.entries.some(y =>
+      y.id === x.id || (y.date === x.date && y.amount === x.amount && (y.type || 'expense') === (x.type || 'expense')));
+    const fresh = incoming.filter(x => !dup(x));
+    const cash = data.cash || [];
+    const msg = `기록 ${fresh.length}개를 지금 기록에 추가할까요?`
+      + (incoming.length > fresh.length ? `\n(이미 있는 ${incoming.length - fresh.length}개는 건너뛰어요)` : '')
+      + (cash.length ? `\n현금·예금 ${cash.map(c => c.name).join(', ')}도 반영해요.` : '');
+    if (!confirm(msg)) return;
+    fresh.forEach(x => state.entries.push({ ts: Date.now(), type: 'expense', memo: '', cat: 'etc', ...x }));
+    cash.forEach(c => {
+      const ex = state.assets.cash.find(a => a.name === c.name);
+      if (ex) ex.amount = c.amount; else state.assets.cash.push({ id: newId(), name: c.name, amount: c.amount });
+    });
+    save(); hideSheet(); render();
+    toast(`${fresh.length}개 추가했어요`);
+  }
 
   // 토스트
   let tt;
