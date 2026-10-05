@@ -1423,8 +1423,13 @@
   // 같은 id, 또는 같은 날짜·금액·종류의 기록이 이미 있으면 중복으로 보고 건너뜀
   function mergeImport(data) {
     const incoming = (data.entries || []).filter(x => x && x.date && x.amount > 0);
-    const dup = x => state.entries.some(y =>
-      y.id === x.id || (y.date === x.date && y.amount === x.amount && (y.type || 'expense') === (x.type || 'expense')));
+    const used = new Set(); // 이미 짝지은 기존 기록 (같은 날 같은 금액이 여러 번이어도 1:1로만 매칭)
+    const dup = x => {
+      const y = state.entries.find(y => !used.has(y) && (y.id === x.id ||
+        (y.date === x.date && y.amount === x.amount && (y.type || 'expense') === (x.type || 'expense'))));
+      if (y) used.add(y);
+      return !!y;
+    };
     const fresh = incoming.filter(x => !dup(x));
     const cash = data.cash || [];
     const msg = `기록 ${fresh.length}개를 지금 기록에 추가할까요?`
